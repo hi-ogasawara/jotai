@@ -346,3 +346,32 @@ it('can read sync derived atom in write without initializing', () => {
   // note: this is why write get needs to update deps
   expect(store.get(a)).toBe(2)
 })
+
+it('can read in write function without changing dependencies (with mount)', () => {
+  // https://github.com/pmndrs/jotai/discussions/2789
+  const a = atom(0)
+  let bReadCount = 0
+  const b = atom(
+    (get) => {
+      ++bReadCount
+      return get(a)
+    },
+    () => {},
+  )
+  let bIsMounted = false
+  b.onMount = () => {
+    bIsMounted = true
+  }
+  const w = atom(null, (get, set) => {
+    expect(bReadCount).toBe(1)
+    const bValue = get(b)
+    expect(bReadCount).toBe(1)
+    set(a, bValue + 1)
+    expect(bReadCount).toBe(1)
+  })
+
+  const store = createStore()
+  store.sub(b, () => {}) // mount b
+  store.set(w)
+  expect(bIsMounted).toBe(true)
+})
